@@ -199,9 +199,13 @@ FlowRenderHeatmap:
 
             dataGrid.AddColumn();
             dataGrid.AddColumn();
+            dataGrid.AddColumn();
 
 
-            dataGrid.AddRow(new Text("Max messages in a day", new Style(Color.Teal)), new Text(processor.MaxMessagesInADay.ToString()));
+            dataGrid.AddRow(new Text("Max messages in a day", new Style(Color.Teal)), 
+                new Text(processor.MaxMessagesInADay.ToString()), 
+                new Text($"at {string.Join(", ", processor.CountOfMessagesByDay.Where(kvp => kvp.Value == processor.MaxMessagesInADay).Select(kvp => kvp.Key.ToString("dd.MM.yyyy")))}"));
+            
             dataGrid.AddRow(new Text("Average messages in a day", new Style(Color.Teal)), new Text(processor.CountOfMessagesByDay.Values.Average().ToString("F1")));
 
             dataGrid.AddRow(new Text("Median messages in a day", new Style(Color.Teal)), new Text(messageMedianCount.ToString("F1")));

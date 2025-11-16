@@ -17,7 +17,6 @@ public static class HeatmapRenderer
         if (endYear - startYear is < 0 or > 99)
         {
             throw new Exception($"Tried to render years from {startYear} to {endYear}. Are you sure it's correct?");
-            return;
         }
 
         AnsiConsole.WriteLine();
