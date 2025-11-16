@@ -1,6 +1,8 @@
 ﻿global using Spectre.Console;
 
 using DiscordMessageDataProcessor;
+using Numerics.NET.Statistics;
+using System.Runtime.CompilerServices;
 
 
 string folderPath = "discord-package";
@@ -36,57 +38,224 @@ var processor = new Processor();
     AnsiConsole.MarkupLineInterpolated($"    [teal]{"Direct Messages",-20}[/] {processor.DirectMessages.Count}");
 }
 
-
-// Selecting the server and channels
+while (true)
 {
-    var selectedServer = AnsiConsole.Prompt(new SelectionPrompt<string>()
-        .Title("Select a server to process")
-        .PageSize(30)
-        .AddChoices(processor.ChannelsByServerNames.Keys.OrderBy(x => x))
-    );
+    List<Processor.IChannel> selectedChannels;
 
-    var serverChannels = processor.ChannelsByServerNames[selectedServer] ?? throw new Exception();
-    processor.LoadChannelMetadata(folderPath, serverChannels);
+    string? chosenChannelKind = null;
+    string? chosenServer = null;
 
-    var channelsGroupedByType = serverChannels
-        .Select(c => (Channel: c, Metadata: processor.ExtraChannelMetadataById[c.Id]))
-        .GroupBy(x => x.Metadata.Type);
-
-    AnsiConsole.MarkupLineInterpolated($"Loaded the server");
-    AnsiConsole.MarkupLineInterpolated($"    [teal]{"Channels (Total)",-20}[/] {serverChannels.Count}");
-    CountChannelsOfType(channelsGroupedByType, Processor.ChannelType.Text, "Text Channels");
-    CountChannelsOfType(channelsGroupedByType, Processor.ChannelType.Voice, "Voice Channels");
-    CountChannelsOfType(channelsGroupedByType, Processor.ChannelType.PrivateThread, "Private Threads");
-    CountChannelsOfType(channelsGroupedByType, Processor.ChannelType.PublicThread, "Public Threads");
-
-    var multiSelectionOfChannels = new MultiSelectionPrompt<Processor.ChannelData>()
-        .Title("Select channels to analyze")
-        .PageSize(30)
-        .UseConverter(c => Markup.Escape(c.Name));
-
-    AddChoicesForChannelType(multiSelectionOfChannels, channelsGroupedByType, Processor.ChannelType.Text, "Text Channels");
-    AddChoicesForChannelType(multiSelectionOfChannels, channelsGroupedByType, Processor.ChannelType.Voice, "Voice Channels");
-    AddChoicesForChannelType(multiSelectionOfChannels, channelsGroupedByType, Processor.ChannelType.PrivateThread, "Private Threads");
-    AddChoicesForChannelType(multiSelectionOfChannels, channelsGroupedByType, Processor.ChannelType.PublicThread, "Public Threads");
-
-    var selectedChannels = AnsiConsole.Prompt(multiSelectionOfChannels);
-
-
-    static void AddChoicesForChannelType(MultiSelectionPrompt<Processor.ChannelData> multiSelectionOfChannels, IEnumerable<IGrouping<Processor.ChannelType, (Processor.ChannelData Channel, Processor.ExtraChannelMetadata Metadata)>> channelsGroupedByType, Processor.ChannelType typeToAdd, string labelToAdd)
+FlowStart:
+    // Selecting the server and channels
     {
-        var group = channelsGroupedByType.FirstOrDefault(g => g.Key == typeToAdd);
-        if (group == null) return;
+        var selectedChannelKind = new SelectionPrompt<string>()
+            .Title("Select what to analyze");
 
-        multiSelectionOfChannels.AddChoiceGroup(new Processor.ChannelData(labelToAdd, ""), group.Select(x => x.Channel).OrderBy(c => c.Name));
+        const string optionDirectMessagesLabel = "Direct Messages";
+        const string optionServerChannelsLabel = "Servers";
+
+        var optionDirectMessages = selectedChannelKind.AddChoice(optionDirectMessagesLabel);
+        var optionServerChannels = selectedChannelKind.AddChoice(optionServerChannelsLabel);
+
+        chosenChannelKind ??= AnsiConsole.Prompt(selectedChannelKind);
+
+        if (chosenChannelKind == optionServerChannelsLabel)
+        {
+            chosenServer ??= AnsiConsole.Prompt(new SelectionPrompt<string>()
+                    .Title("Select a server to process")
+                    .PageSize(20)
+                    .WrapAround()
+                    .AddChoices(processor.ChannelsByServerNames.Keys.OrderBy(x => x))
+                );
+
+            var serverChannels = processor.ChannelsByServerNames[chosenServer] ?? throw new Exception();
+            processor.LoadChannelMetadata(fullFolderPath, serverChannels);
+
+            var channelsGroupedByType = serverChannels
+                .Select(c => (Channel: c, Metadata: processor.ExtraChannelMetadataById[c.Id]))
+                .GroupBy(x => x.Metadata.Type);
+
+            AnsiConsole.MarkupLineInterpolated($"Loaded the server");
+            AnsiConsole.MarkupLineInterpolated($"    [teal]{"Channels (Total)",-20}[/] {serverChannels.Count}");
+            CountChannelsOfType(channelsGroupedByType, Processor.ChannelType.Text, "Text Channels");
+            CountChannelsOfType(channelsGroupedByType, Processor.ChannelType.Voice, "Voice Channels");
+            CountChannelsOfType(channelsGroupedByType, Processor.ChannelType.PrivateThread, "Private Threads");
+            CountChannelsOfType(channelsGroupedByType, Processor.ChannelType.PublicThread, "Public Threads");
+
+            var userActions = new SelectionPrompt<string>()
+                .Title("Select an operation");
+
+            const string optionAllChannelsLabel = "Analyze all channels";
+            const string optionSelectedChannelsLabel = "Analyze selected channels";
+
+            var optionAllChannels = userActions.AddChoice(optionAllChannelsLabel);
+            var optionSelectedChannels = userActions.AddChoice(optionSelectedChannelsLabel);
+
+            var chosenOption = AnsiConsole.Prompt(userActions);
+
+            if (chosenOption == optionAllChannelsLabel)
+            {
+                selectedChannels = [.. serverChannels];
+            }
+            else if (chosenOption == optionSelectedChannelsLabel)
+            {
+
+                var multiSelectionOfChannels = new MultiSelectionPrompt<Processor.ChannelData>()
+                    .Title("Select channels to analyze")
+                    .PageSize(20)
+                    .WrapAround()
+                    .UseConverter(c => Markup.Escape(c.Name));
+
+                AddChoicesForChannelType(multiSelectionOfChannels, channelsGroupedByType, Processor.ChannelType.Text, "Text Channels");
+                AddChoicesForChannelType(multiSelectionOfChannels, channelsGroupedByType, Processor.ChannelType.Voice, "Voice Channels");
+                AddChoicesForChannelType(multiSelectionOfChannels, channelsGroupedByType, Processor.ChannelType.PrivateThread, "Private Threads");
+                AddChoicesForChannelType(multiSelectionOfChannels, channelsGroupedByType, Processor.ChannelType.PublicThread, "Public Threads");
+
+                selectedChannels = [.. AnsiConsole.Prompt(multiSelectionOfChannels)];
+            }
+            else
+            {
+                throw new Exception();
+            }
+
+
+            static void AddChoicesForChannelType(MultiSelectionPrompt<Processor.ChannelData> multiSelectionOfChannels, IEnumerable<IGrouping<Processor.ChannelType, (Processor.ChannelData Channel, Processor.ExtraChannelMetadata Metadata)>> channelsGroupedByType, Processor.ChannelType typeToAdd, string labelToAdd)
+            {
+                var group = channelsGroupedByType.FirstOrDefault(g => g.Key == typeToAdd);
+                if (group == null) return;
+
+                multiSelectionOfChannels.AddChoiceGroup(new Processor.ChannelData(labelToAdd, ""), group.Select(x => x.Channel).OrderBy(c => c.Name));
+            }
+
+            static void CountChannelsOfType(IEnumerable<IGrouping<Processor.ChannelType, (Processor.ChannelData Channel, Processor.ExtraChannelMetadata Metadata)>> channelsGroupedByType, Processor.ChannelType typeToList, string labelToShow)
+            {
+                var group = channelsGroupedByType.FirstOrDefault(g => g.Key == typeToList);
+                if (group == null) return;
+
+                AnsiConsole.MarkupLineInterpolated($"        [teal]{labelToShow,-20}[/] {group.Count()}");
+            }
+        }
+        else if (chosenChannelKind == optionDirectMessagesLabel)
+        {
+            var selectedChannel = AnsiConsole.Prompt(new SelectionPrompt<Processor.IChannel>()
+                .Title("Select a direct message to process")
+                .WrapAround()
+                .PageSize(20)
+                .UseConverter(c => c.Name)
+                .AddChoices(processor.DirectMessages.OrderBy(x => x.Username).ThenBy(x => x.Name).Cast<Processor.IChannel>())
+            );
+
+            selectedChannels = [selectedChannel];
+        }
+        else
+        {
+            throw new Exception();
+        }
+
     }
 
-    static void CountChannelsOfType(IEnumerable<IGrouping<Processor.ChannelType, (Processor.ChannelData Channel, Processor.ExtraChannelMetadata Metadata)>> channelsGroupedByType, Processor.ChannelType typeToList, string labelToShow)
+    // Loading the message data
     {
-        var group = channelsGroupedByType.FirstOrDefault(g => g.Key == typeToList);
-        if (group == null) return;
+        AnsiConsole.WriteLine("Loading following channels:");
+        AnsiConsole.Write(new Columns(selectedChannels.Select(c => $"[teal]{Markup.Escape(c.Name)}[/]")));
+        AnsiConsole.WriteLine();
 
-        AnsiConsole.MarkupLineInterpolated($"        [teal]{labelToShow,-20}[/] {group.Count()}");
+        processor.LoadTimestamps(fullFolderPath, selectedChannels);
+    }
+
+FlowRenderHeatmap:
+    // Displaying the heatmap
+    {
+        if (processor.MaxMessagesInADay > 0)
+        {
+            double[] allDayCounts = [.. processor.CountOfMessagesByDay.Values];
+
+            var messageMedianCount = Stats.Median(allDayCounts);
+            var messagesCountMaxInLog = Math.Log(processor.MaxMessagesInADay);
+
+            var coloringStrategyPrompt = new SelectionPrompt<ColoringStrategy>()
+                .Title("Select how the color ramp is calculated")
+                .UseConverter(s => s.Name);
+
+            coloringStrategyPrompt.AddChoice(new("Log (shows the general pattern)", x => Math.Log(x) / messagesCountMaxInLog));
+            coloringStrategyPrompt.AddChoice(new("Median (shows the general pattern clamping the more active half)", x => x / messageMedianCount));
+            coloringStrategyPrompt.AddChoice(new("Max (shows the peaks)", x => x / processor.MaxMessagesInADay));
+            coloringStrategyPrompt.AddChoice(new("Binary (shows all non-zero days)", x => 1));
+
+            var coloringStrategy = AnsiConsole.Prompt(coloringStrategyPrompt);
+
+            HeatmapRenderer.RenderHeatmap(processor.FirstMessageTimestamp, processor.LastMessageTimestamp, d =>
+            {
+                var count = processor.GetMessageCount(d);
+                var alpha = coloringStrategy.Conversion(count);
+
+                if (count == 0)
+                    return 0;
+                else
+                    return Math.Max(alpha, 0.1f);
+            });
+
+            var dataGrid = new Grid();
+
+            dataGrid.AddColumn();
+            dataGrid.AddColumn();
+
+
+            dataGrid.AddRow(new Text("Max messages in a day", new Style(Color.Teal)), new Text(processor.MaxMessagesInADay.ToString()));
+            dataGrid.AddRow(new Text("Average messages in a day", new Style(Color.Teal)), new Text(processor.CountOfMessagesByDay.Values.Average().ToString("F1")));
+
+            dataGrid.AddRow(new Text("Median messages in a day", new Style(Color.Teal)), new Text(messageMedianCount.ToString("F1")));
+
+            dataGrid.AddRow(new Text("First Message", new Style(Color.Teal)), new Text(processor.FirstMessageTimestamp.ToString("dd.MM.yyyy HH:mm")));
+            dataGrid.AddRow(new Text("Last Message", new Style(Color.Teal)), new Text(processor.LastMessageTimestamp.ToString("dd.MM.yyyy HH:mm")));
+
+            AnsiConsole.Write(dataGrid);
+            AnsiConsole.WriteLine();
+        }
+        else
+        {
+            AnsiConsole.MarkupLineInterpolated($"[orange3]Selected channels have no messages[/]");
+        }
+    }
+
+    {
+        const string optionReset = "Select a different direct message/server";
+        const string optionDifferentChannels = "Select different channels";
+        const string optionRerender = "Select different display method";
+        const string optionQuit = "[[QUIT]]";
+
+        var endOptionPrompt = new SelectionPrompt<string>()
+            .Title("What do you want to do?");
+
+        endOptionPrompt.AddChoice(optionReset);
+
+        if (selectedChannels.Count > 0 && selectedChannels[0] is not Processor.DirectMessagesData)
+            endOptionPrompt.AddChoice(optionDifferentChannels);
+
+        endOptionPrompt.AddChoice(optionRerender);
+        endOptionPrompt.AddChoice(optionQuit);
+
+        var selectedEndOption = AnsiConsole.Prompt(endOptionPrompt);
+
+
+        AnsiConsole.Clear();
+
+        switch (selectedEndOption)
+        {
+            case optionReset:
+                {
+                    chosenChannelKind = null;
+                    chosenServer = null;
+                    goto FlowStart;
+                }
+            case optionDifferentChannels:
+                {
+                    goto FlowStart;
+                }
+            case optionRerender: goto FlowRenderHeatmap;
+            case optionQuit: return;
+        }
     }
 }
 
-
+record ColoringStrategy(string Name, Func<int, double> Conversion);
