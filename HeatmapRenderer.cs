@@ -6,7 +6,7 @@ public static class HeatmapRenderer
     public static void RenderHeatmap(DateTime startDate, DateTime endDate, Func<DateTime, double> convertDateToValue)
     {
         var baseColor = new Unicolour("#151B23");
-        var activeColor = new Unicolour("#56D364");
+        var activeColor = new Unicolour("#5865F2");
 
         var normalizedStartDate = new DateTime(startDate.Year, startDate.Month, startDate.Day, 0, 0, 0, 0);
         var normalizedEndDate = new DateTime(endDate.Year, endDate.Month, endDate.Day, 0, 0, 0, 0);
