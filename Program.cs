@@ -45,6 +45,10 @@ while (true)
     string? chosenChannelKind = null;
     string? chosenServer = null;
 
+    ColoringStrategy? coloringStrategy = null;
+    MonthDrawingStrategy? monthDrawingStrategy = null;
+    DrawingColor? drawingColor = null;
+
 FlowStart:
     // Selecting the server and channels
     {
@@ -65,6 +69,7 @@ FlowStart:
                     .Title("Select a server to process")
                     .PageSize(20)
                     .WrapAround()
+                    .EnableSearch()
                     .AddChoices(processor.ChannelsByServerNames.Keys.OrderBy(x => x))
                 );
 
@@ -141,6 +146,7 @@ FlowStart:
                 .Title("Select a direct message to process")
                 .WrapAround()
                 .PageSize(20)
+                .EnableSearch()
                 .UseConverter(c => c.Name)
                 .AddChoices(processor.DirectMessages.OrderBy(x => x.Username).ThenBy(x => x.Name).Cast<Processor.IChannel>())
             );
@@ -173,16 +179,52 @@ FlowRenderHeatmap:
             var messageMedianCount = Stats.Median(allDayCounts);
             var messagesCountMaxInLog = Math.Log(processor.MaxMessagesInADay);
 
-            var coloringStrategyPrompt = new SelectionPrompt<ColoringStrategy>()
-                .Title("Select how the color ramp is calculated")
-                .UseConverter(s => s.Name);
+            {
+                var coloringStrategyPrompt = new SelectionPrompt<ColoringStrategy>()
+                    .Title("Select how the color ramp is calculated")
+                    .UseConverter(s => s.Name);
 
-            coloringStrategyPrompt.AddChoice(new("Log (shows the general pattern)", x => Math.Log(x) / messagesCountMaxInLog));
-            coloringStrategyPrompt.AddChoice(new("Median (shows the general pattern clamping the more active half)", x => x / messageMedianCount));
-            coloringStrategyPrompt.AddChoice(new("Max (shows the peaks)", x => x / processor.MaxMessagesInADay));
-            coloringStrategyPrompt.AddChoice(new("Binary (shows all non-zero days)", x => 1));
+                if (coloringStrategy != null)
+                    coloringStrategyPrompt.AddChoice(new(Markup.Escape($"[as before]"), coloringStrategy.Conversion));
 
-            var coloringStrategy = AnsiConsole.Prompt(coloringStrategyPrompt);
+                coloringStrategyPrompt.AddChoice(new("Log (shows the general pattern)", x => Math.Log(x) / messagesCountMaxInLog));
+                coloringStrategyPrompt.AddChoice(new("Median (shows the general pattern clamping the more active half)", x => x / messageMedianCount));
+                coloringStrategyPrompt.AddChoice(new("Max (shows the peaks)", x => x / processor.MaxMessagesInADay));
+                coloringStrategyPrompt.AddChoice(new("Binary (shows all non-zero days)", x => 1));
+
+                coloringStrategy = AnsiConsole.Prompt(coloringStrategyPrompt);
+            }
+
+            {
+                var monthDrawingStrategyPrompt = new SelectionPrompt<MonthDrawingStrategy>()
+                    .Title("Select how the months are drawn")
+                    .UseConverter(s => s.Name);
+
+                if (monthDrawingStrategy != null)
+                    monthDrawingStrategyPrompt.AddChoice(new(Markup.Escape($"[as before]"), monthDrawingStrategy.Mode));
+
+                monthDrawingStrategyPrompt.AddChoice(new("Add lines in between", HeatmapRenderer.MonthRenderMode.Lines));
+                monthDrawingStrategyPrompt.AddChoice(new("Separate months (increases width)", HeatmapRenderer.MonthRenderMode.Separation));
+                monthDrawingStrategyPrompt.AddChoice(new("Alternating background", HeatmapRenderer.MonthRenderMode.Background));
+                monthDrawingStrategyPrompt.AddChoice(new("None", HeatmapRenderer.MonthRenderMode.None));
+
+                monthDrawingStrategy = AnsiConsole.Prompt(monthDrawingStrategyPrompt);
+            }
+
+            {
+                var drawingColorPrompt = new SelectionPrompt<DrawingColor>()
+                    .Title("Select how the months are drawn")
+                    .UseConverter(s => s.Name);
+
+                if (drawingColor != null)
+                    drawingColorPrompt.AddChoice(new(Markup.Escape($"[as before]"), drawingColor.ColorHex));
+
+                drawingColorPrompt.AddChoice(new("Blue (Discord)", "#5865F2"));
+                drawingColorPrompt.AddChoice(new("Green (GitHub)", "#56D364"));
+                drawingColorPrompt.AddChoice(new("White", "#FFFFFF"));
+
+                drawingColor = AnsiConsole.Prompt(drawingColorPrompt);
+            }
 
             HeatmapRenderer.RenderHeatmap(processor.FirstMessageTimestamp, processor.LastMessageTimestamp, d =>
             {
@@ -193,7 +235,7 @@ FlowRenderHeatmap:
                     return 0;
                 else
                     return Math.Max(alpha, 0.1f);
-            });
+            }, monthDrawingStrategy.Mode, drawingColor.ColorHex);
 
             var dataGrid = new Grid();
 
@@ -202,10 +244,10 @@ FlowRenderHeatmap:
             dataGrid.AddColumn();
 
 
-            dataGrid.AddRow(new Text("Max messages in a day", new Style(Color.Teal)), 
-                new Text(processor.MaxMessagesInADay.ToString()), 
+            dataGrid.AddRow(new Text("Max messages in a day", new Style(Color.Teal)),
+                new Text(processor.MaxMessagesInADay.ToString()),
                 new Text($"at {string.Join(", ", processor.CountOfMessagesByDay.Where(kvp => kvp.Value == processor.MaxMessagesInADay).Select(kvp => kvp.Key.ToString("dd.MM.yyyy")))}"));
-            
+
             dataGrid.AddRow(new Text("Average messages in a day", new Style(Color.Teal)), new Text(processor.CountOfMessagesByDay.Values.Average().ToString("F1")));
 
             dataGrid.AddRow(new Text("Median messages in a day", new Style(Color.Teal)), new Text(messageMedianCount.ToString("F1")));
@@ -231,12 +273,13 @@ FlowRenderHeatmap:
         var endOptionPrompt = new SelectionPrompt<string>()
             .Title("What do you want to do?");
 
-        endOptionPrompt.AddChoice(optionReset);
+        endOptionPrompt.AddChoice(optionRerender);
 
         if (selectedChannels.Count > 0 && selectedChannels[0] is not Processor.DirectMessagesData)
             endOptionPrompt.AddChoice(optionDifferentChannels);
 
-        endOptionPrompt.AddChoice(optionRerender);
+        endOptionPrompt.AddChoice(optionReset);
+
         endOptionPrompt.AddChoice(optionQuit);
 
         var selectedEndOption = AnsiConsole.Prompt(endOptionPrompt);
@@ -263,3 +306,5 @@ FlowRenderHeatmap:
 }
 
 record ColoringStrategy(string Name, Func<int, double> Conversion);
+record MonthDrawingStrategy(string Name, HeatmapRenderer.MonthRenderMode Mode);
+record DrawingColor(string Name, string ColorHex);

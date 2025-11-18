@@ -3,10 +3,10 @@
 namespace DiscordMessageDataProcessor;
 public static class HeatmapRenderer
 {
-    public static void RenderHeatmap(DateTime startDate, DateTime endDate, Func<DateTime, double> convertDateToValue)
+    public static void RenderHeatmap(DateTime startDate, DateTime endDate, Func<DateTime, double> convertDateToValue, MonthRenderMode monthRenderMode = MonthRenderMode.None, string hexColor = null)
     {
         var baseColor = new Unicolour("#151B23");
-        var activeColor = new Unicolour("#5865F2");
+        var activeColor = new Unicolour(hexColor ?? "#5865F2");
 
         var normalizedStartDate = new DateTime(startDate.Year, startDate.Month, startDate.Day, 0, 0, 0, 0);
         var normalizedEndDate = new DateTime(endDate.Year, endDate.Month, endDate.Day, 0, 0, 0, 0);
@@ -37,6 +37,7 @@ public static class HeatmapRenderer
                 for (int week = 0; week < 53; week++)
                 {
                     var cellDate = DateFromCell(year, week, row);
+                    var leftCellDate = DateFromCell(year, week - 1, row);
 
                     if (cellDate == null)
                     {
@@ -51,11 +52,29 @@ public static class HeatmapRenderer
                     var c = baseColor.Mix(activeColor, ColourSpace.Oklab, alpha);
 
                     var renderChar = '■';
+                    var fillString = " ";
 
-                    //if (cellDate.Value < normalizedStartDate || cellDate.Value > normalizedEndDate)
-                    //    renderChar = '□';
+                    var bordersDifferentMonthOnLeft = leftCellDate.HasValue && cellDate.HasValue && cellDate.Value.Month != leftCellDate.Value.Month;
 
-                    AnsiConsole.MarkupInterpolated($"[{c.Hex}]{renderChar} [/]");
+                    if (monthRenderMode == MonthRenderMode.Separation && bordersDifferentMonthOnLeft)
+                    {
+                        fillString = "    ";
+                    }
+
+                    if (monthRenderMode == MonthRenderMode.Lines && bordersDifferentMonthOnLeft)
+                    {
+                        fillString = $"[grey27]│[/]";
+                    }
+
+                    if (monthRenderMode == MonthRenderMode.Background)
+                    {
+                        var background = cellDate.Value.Day == 1
+                            ? "#21262E"
+                            : "black";
+                    }
+
+
+                    AnsiConsole.Markup($"{fillString}[{c.Hex}]{renderChar}[/]");
                 }
 
                 AnsiConsole.WriteLine();
@@ -67,6 +86,9 @@ public static class HeatmapRenderer
 
     private static DateTime? DateFromCell(int year, int week, int row)
     {
+        if (week < 0)
+            return null;
+
         var firstDayOfTheYear = new DateTime(year, 1, 1, 0, 0, 0, 0, 0);
         var weekYearOffset = -((((int)firstDayOfTheYear.DayOfWeek - 1) + 7) % 7);
         if (weekYearOffset == -7) weekYearOffset = 0;
@@ -77,5 +99,13 @@ public static class HeatmapRenderer
             return null;
 
         return date;
+    }
+
+    public enum MonthRenderMode
+    {
+        None,
+        Separation,
+        Background,
+        Lines,
     }
 }
