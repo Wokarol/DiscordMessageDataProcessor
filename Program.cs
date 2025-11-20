@@ -48,6 +48,7 @@ while (true)
     ColoringStrategy? coloringStrategy = null;
     MonthDrawingStrategy? monthDrawingStrategy = null;
     DrawingColor? drawingColor = null;
+    bool? drawCompositionLayers = null;
 
 FlowStart:
     // Selecting the server and channels
@@ -226,7 +227,14 @@ FlowRenderHeatmap:
                 drawingColor = AnsiConsole.Prompt(drawingColorPrompt);
             }
 
-            HeatmapRenderer.RenderHeatmap(processor.FirstMessageTimestamp, processor.LastMessageTimestamp, d =>
+            {
+                var drawCompositionLayersPrompt = new ConfirmationPrompt("Should the layers for compoosition be drawn? Use it only if you want to do further image processing on the data");
+                drawCompositionLayersPrompt.DefaultValue = drawCompositionLayers ?? false;
+
+                drawCompositionLayers = AnsiConsole.Prompt(drawCompositionLayersPrompt);
+            }
+
+            Func<DateTime, double> dataRenderingFunction = d =>
             {
                 var count = processor.GetMessageCount(d);
                 var alpha = coloringStrategy.Conversion(count);
@@ -235,7 +243,9 @@ FlowRenderHeatmap:
                     return 0;
                 else
                     return Math.Max(alpha, 0.1f);
-            }, monthDrawingStrategy.Mode, drawingColor.ColorHex);
+            };
+
+            HeatmapRenderer.RenderHeatmap(processor.FirstMessageTimestamp, processor.LastMessageTimestamp, dataRenderingFunction, monthDrawingStrategy.Mode, drawingColor.ColorHex);
 
             var dataGrid = new Grid();
 
@@ -257,6 +267,28 @@ FlowRenderHeatmap:
 
             AnsiConsole.Write(dataGrid);
             AnsiConsole.WriteLine();
+
+            if (drawCompositionLayers == true)
+            {
+                AnsiConsole.WriteLine("----------- Base Calendar -------------\n♦♦♦♦");
+                HeatmapRenderer.RenderHeatmap(processor.FirstMessageTimestamp, processor.LastMessageTimestamp, 
+                    d => 0, monthDrawingStrategy.Mode, drawingColor.ColorHex);
+
+                AnsiConsole.WriteLine("------------- Data Only ---------------\n♦♦♦♦");
+                HeatmapRenderer.RenderHeatmap(processor.FirstMessageTimestamp, processor.LastMessageTimestamp, 
+                    dataRenderingFunction, HeatmapRenderer.MonthRenderMode.None, drawingColor.ColorHex, 
+                    renderCalendar: false);
+
+                AnsiConsole.WriteLine("------------ Data as Mask -------------\n♦♦♦♦");
+                HeatmapRenderer.RenderHeatmap(processor.FirstMessageTimestamp, processor.LastMessageTimestamp,
+                    dataRenderingFunction, HeatmapRenderer.MonthRenderMode.None, "#FFFFFF",
+                    renderCalendar: false);
+
+                AnsiConsole.WriteLine("--------- Data as Binary Mask ---------\n♦♦♦♦");
+                HeatmapRenderer.RenderHeatmap(processor.FirstMessageTimestamp, processor.LastMessageTimestamp,
+                    d => processor.GetMessageCount(d) != 0 ? 1.0 : 0.0, HeatmapRenderer.MonthRenderMode.None, "#FFFFFF",
+                    renderCalendar: false);
+            }
         }
         else
         {

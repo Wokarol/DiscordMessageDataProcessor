@@ -3,9 +3,9 @@
 namespace DiscordMessageDataProcessor;
 public static class HeatmapRenderer
 {
-    public static void RenderHeatmap(DateTime startDate, DateTime endDate, Func<DateTime, double> convertDateToValue, MonthRenderMode monthRenderMode = MonthRenderMode.None, string hexColor = null)
+    public static void RenderHeatmap(DateTime startDate, DateTime endDate, Func<DateTime, double> convertDateToValue, MonthRenderMode monthRenderMode = MonthRenderMode.None, string? hexColor = null, bool renderCalendar = true)
     {
-        var baseColor = new Unicolour("#151B23");
+        var baseColor = new Unicolour(renderCalendar ? "#151B23" : "#0C0C0C" /* For some reason this is black on CMD, so that's what I roll with */);
         var activeColor = new Unicolour(hexColor ?? "#5865F2");
 
         var normalizedStartDate = new DateTime(startDate.Year, startDate.Month, startDate.Day, 0, 0, 0, 0);
@@ -25,7 +25,7 @@ public static class HeatmapRenderer
         {
             for (int row = 0; row < 7; row++)
             {
-                if (row == 0)
+                if (row == 0 && renderCalendar)
                 {
                     AnsiConsole.Write($"{year,-5}");
                 }
