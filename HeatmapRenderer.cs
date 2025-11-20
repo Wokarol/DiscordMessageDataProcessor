@@ -53,6 +53,7 @@ public static class HeatmapRenderer
 
                     var renderChar = '■';
                     var fillString = " ";
+                    var background = "black";
 
                     var bordersDifferentMonthOnLeft = leftCellDate.HasValue && cellDate.HasValue && cellDate.Value.Month != leftCellDate.Value.Month;
 
@@ -66,15 +67,13 @@ public static class HeatmapRenderer
                         fillString = $"[grey27]│[/]";
                     }
 
-                    if (monthRenderMode == MonthRenderMode.Background)
+                    if (monthRenderMode == MonthRenderMode.Background && cellDate.Value.Day == 1)
                     {
-                        var background = cellDate.Value.Day == 1
-                            ? "#21262E"
-                            : "black";
+                        background = "#21262E";
                     }
 
 
-                    AnsiConsole.Markup($"{fillString}[{c.Hex}]{renderChar}[/]");
+                    AnsiConsole.Markup($"{fillString}[{c.Hex} on {background}]{renderChar}[/]");
                 }
 
                 AnsiConsole.WriteLine();
