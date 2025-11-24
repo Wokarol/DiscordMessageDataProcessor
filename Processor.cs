@@ -205,15 +205,17 @@ public partial class Processor
     public record DirectMessagesData(string Name, string? Username, string Id) : IChannel;
     public record ExtraChannelMetadata(string Id, ChannelType Type);
 
+    // Matches Discord's Json model
     public class ExtraChannelMetadataRaw
     {
-        public string id { get; set; }
-        public string type { get; set; }
+        public string id { get; set; } = null!;
+        public string type { get; set; } = null!;
     }
 
+    // Matches Discord's Json model
     public class MessageDataRaw
     {
-        public string Timestamp { get; set; }
+        public string Timestamp { get; set; } = null!;
     }
 
     public interface IChannel
@@ -239,6 +241,7 @@ public partial class Processor
     private static partial Regex DirectMessageRegex();
 }
 
+// Using the SerializerContext allows for code stripping and much smaller standalone executable
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(ExtraChannelMetadataRaw))]
 [JsonSerializable(typeof(List<MessageDataRaw>))]

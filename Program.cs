@@ -45,6 +45,7 @@ while (true)
     string? chosenChannelKind = null;
     string? chosenServer = null;
 
+    // Those variables are kept in the outer scope to survive the resets of the user's flow
     ColoringStrategy? coloringStrategy = null;
     MonthDrawingStrategy? monthDrawingStrategy = null;
     DrawingColor? drawingColor = null;
@@ -101,7 +102,7 @@ FlowStart:
 
             if (chosenOption == optionAllChannelsLabel)
             {
-                selectedChannels = [.. serverChannels];
+                selectedChannels = [.. serverChannels]; // Cloning the collection handles the casting
             }
             else if (chosenOption == optionSelectedChannelsLabel)
             {
@@ -268,6 +269,7 @@ FlowRenderHeatmap:
             AnsiConsole.Write(dataGrid);
             AnsiConsole.WriteLine();
 
+            // The composition layers are used for more advanced image composition (overlappping multiple heatmaps and so on)
             if (drawCompositionLayers == true)
             {
                 AnsiConsole.WriteLine("----------- Base Calendar -------------\n♦♦♦♦");
@@ -319,6 +321,8 @@ FlowRenderHeatmap:
 
         AnsiConsole.Clear();
 
+        // Gotos aren't really a good option, but they were the easiest way to retrofit a "return to a point" flow into the code
+        // Sorry
         switch (selectedEndOption)
         {
             case optionReset:
