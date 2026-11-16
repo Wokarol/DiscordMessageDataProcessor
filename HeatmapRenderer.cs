@@ -5,7 +5,7 @@ public static class HeatmapRenderer
 {
     public static void RenderHeatmap(DateTime startDate, DateTime endDate, Func<DateTime, double> convertDateToValue, MonthRenderMode monthRenderMode = MonthRenderMode.None, string? hexColor = null, bool renderCalendar = true)
     {
-        var baseColor = new Unicolour(renderCalendar ? "#151B23" : "#0C0C0C" /* For some reason this is black on CMD, so that's what I roll with */);
+        var baseColor = new Unicolour(renderCalendar ? "#151B23" : "#000000" /* For some reason this is black on CMD, so that's what I roll with */);
         var activeColor = new Unicolour(hexColor ?? "#5865F2");
 
         var normalizedStartDate = new DateTime(startDate.Year, startDate.Month, startDate.Day, 0, 0, 0, 0);
@@ -51,9 +51,9 @@ public static class HeatmapRenderer
 
                     var c = baseColor.Mix(activeColor, ColourSpace.Oklab, alpha);
 
-                    var renderChar = '■';
+                    var renderChar = cellDate.Value > DateTime.UtcNow ? '\u25A1' : '■';
                     var fillString = " ";
-                    var background = "black";
+                    var background = "#000000";
 
                     var bordersDifferentMonthOnLeft = leftCellDate.HasValue && cellDate.HasValue && cellDate.Value.Month != leftCellDate.Value.Month;
 
@@ -71,7 +71,6 @@ public static class HeatmapRenderer
                     {
                         background = "#21262E";
                     }
-
 
                     AnsiConsole.Markup($"{fillString}[{c.Hex} on {background}]{renderChar}[/]");
                 }

@@ -234,7 +234,7 @@ public partial class Processor
     }
 
 
-    [GeneratedRegex(@"^(?<Name>.+)\sin\s(?<Server>.+)$")]
+    [GeneratedRegex(@"^(?<Name>.+)(\sin\s|,\s)(?<Server>.+)$")]
     private static partial Regex ChannelRegex();
 
     [GeneratedRegex(@"^Direct Message with (?<User>.+?)#\d+$")]

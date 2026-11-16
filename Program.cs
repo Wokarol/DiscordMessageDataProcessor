@@ -3,7 +3,12 @@
 using DiscordMessageDataProcessor;
 using Numerics.NET.Statistics;
 using System.Runtime.CompilerServices;
+using System.Text;
 
+Console.OutputEncoding = Encoding.UTF8;
+Console.InputEncoding = Encoding.UTF8;
+
+AnsiConsole.Profile.Capabilities.Unicode = true;
 
 string folderPath = "discord-package";
 
@@ -30,6 +35,14 @@ var processor = new Processor();
     catch (Exception e)
     {
         AnsiConsole.MarkupLineInterpolated($"[red]Failed to load the data: {e.Message}[/]");
+    }
+
+    if (processor.ChannelsByServerNames.Count == 0 || processor.DirectMessages.Count == 0)
+    {
+        AnsiConsole.MarkupLineInterpolated($"\n[red]To use the tool, request Messages from Discord via Settings -> Data & Privacy -> Request Data. After you get the package from Discord, place it next to the .exe as a folder named \"discord-package\"[/]\n");
+        AnsiConsole.WriteLine("Press any key to continue");
+        AnsiConsole.Console.Input.ReadKey(false);
+        return;
     }
 
 
@@ -149,7 +162,7 @@ FlowStart:
                 .WrapAround()
                 .PageSize(20)
                 .EnableSearch()
-                .UseConverter(c => c.Name)
+                .UseConverter(c => Markup.Escape(c.Name)) // This still breaks when you try to search and it hits a channel with [ Something ] 
                 .AddChoices(processor.DirectMessages.OrderBy(x => x.Username).ThenBy(x => x.Name).Cast<Processor.IChannel>())
             );
 

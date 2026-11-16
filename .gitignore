@@ -400,4 +400,4 @@ FodyWeavers.xsd
 *.sln.iml
 
 # Stuffs
-discord-package/
+discord-package*/
